@@ -1,0 +1,43 @@
+Install Docker 
+https://docs.docker.com/engine/installation/
+
+How to build an app in Docker
+  Dockerfile: The running environment and system settings of the container
+  App itself: App code 
+  Files: Files needed in the app
+
+Files will be `added` in the container by editting Dockerfile,
+eg.:
+  # Copy the current directory contents into the container at /app
+  ADD . /app
+  
+Docker command
+
+$ docker pull
+$ docker run
+$ docker ps
+$ docker images
+$ docker stop
+$ docker push
+
+Docker Service 
+
+docker-compose.yml: Defines how docker container should behave in production
+
+Docker Swarm
+A built-in cluster management module. Master-Worker pattern.
+Can switch between swarm mode and stand-alone mode.
+
+Type the following command, the computer will turn into Swarm mode, and automatically become the swarm manager(Master node).
+  $ docker swarm init --advertise-addr localhost:2377
+For the other nodes you to add into the swarm as workers
+  $ docker swarm join --token <token> <ip>:<port>
+  token is an unique string the swarm manager print out when it started. ip:port is master_ip:2377
+
+Docker Stack
+A stack is a group of interrelated services that share dependencies, and can be orchestrated and scaled together.
+
+docker-compose install:
+$ curl -L https://github.com/docker/compose/releases/download/1.13.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+$ chmod +x /usr/local/bin/docker-compose
+$ docker-compose --version
