@@ -72,7 +72,7 @@ ssh username@hostIP
 
 连接localhost同样需要验证。
 
-###1，尝试ssh连接localhost
+1，尝试ssh连接localhost
 `ssh localhost`
 如果本机没有ssh，先按提示安装ssh,记得是`sudo apt-get install openssh`
 
