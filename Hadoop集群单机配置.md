@@ -1,5 +1,8 @@
+Hadoop集群单机配置
+=========================
 
 #流程
+-------------
 
 1，安装JDK  
 2，设置SSH无密码登录  
@@ -11,6 +14,7 @@
 PS:所有操作在Linux-Ubuntu 14.04 64bit系统云服务器下完成
 
 #安装JDK
+-------------
 
 1，下载JDK的压缩包，复制到要放置的位置 
 
@@ -58,6 +62,7 @@ export JAVA_HOME PATH CLASSPATH
 在终端 输入`Java -version`，如果打印出版本信息，说明JDK安装成功。
 
 #设置SSH免密码登录
+-------------
 
 首先说明Linux远程控制使用ssh，命令格式如下：
 ```
@@ -67,7 +72,7 @@ ssh username@hostIP
 
 连接localhost同样需要验证。
 
-1，尝试ssh连接localhost
+###1，尝试ssh连接localhost
 `ssh localhost`
 如果本机没有ssh，先按提示安装ssh,记得是`sudo apt-get install openssh`
 
@@ -88,6 +93,7 @@ chmod 0600 ~/.ssh/authorized_keys
 再次键入ssh localhost，如果能够直接进入，说明配置成功。
 
 #Hadoop的下载安装和环境变量配置
+-------------
 
 1，下载安装Hadoop
 到Hadoop官网http://hadoop.apache.org/选择想用版本的Hadoop安装包(目前的最新稳定版是2.7.3) Ubuntu64bit操作系统选择.tar.gz后缀的压缩包。使用winscp上传到服务器，移动到想要放的位置，我存放在了/opt/目录下，解压缩：
@@ -116,6 +122,7 @@ export HADOOP_CLASSPATH=${JAVA_HOME}/lib/tools.jar
 键入`source /etc/profile`更新环境变量在任意目录下键入`hadoop`，会出现hadoop命令相关提示，说明设置成功。
 
 #Hadoop配置文件的设置
+-------------
 
 我们要修改的文件都在hadoop安装目录下的etc目录下。
 
@@ -223,6 +230,7 @@ cp $HADOOP_HOME/etc/hadoop/mapred-site.xml.template $HADOOP_HOME/etc/hadoop/mapr
 四个配置文件分别针对hadoop核心core和hadoop的三大组件：yarn，hdfs和mapreduce
 
 #启动Hadoop
+-------------
 
 首先进行格式化：
 
@@ -248,6 +256,7 @@ sh $HADOOP_HOME/sbin/start-all.sh
 在终端可以看到一个个组件启动起来。
 
 #Hadoop Web界面
+-------------
 
 启动起来Hadoop之后，可以通过网页端浏览管理hadoop
 
