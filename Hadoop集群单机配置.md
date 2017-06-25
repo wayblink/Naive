@@ -1,12 +1,12 @@
 
 #流程
 
-1，安装JDK
-2，设置SSH无密码登录
-3，Hadoop的下载安装和环境变量配置
-4，Hadoop配置文件的设置
-5，启动Hadoop
-6，浏览Hadoop Web页面
+1，安装JDK  
+2，设置SSH无密码登录  
+3，Hadoop的下载安装和环境变量配置  
+4，Hadoop配置文件的设置  
+5，启动Hadoop  
+6，浏览Hadoop Web页面  
 
 PS:所有操作在Linux-Ubuntu 14.04 64bit系统云服务器下完成
 
@@ -90,7 +90,7 @@ chmod 0600 ~/.ssh/authorized_keys
 #Hadoop的下载安装和环境变量配置
 
 1，下载安装Hadoop
-到Hadoop官网http://hadoop.apache.org/选择想用版本的Hadoop安装包(目前的最新稳定版是2.7.3)，Ubuntu64bit操作系统选择.tar.gz后缀的压缩包。使用winscp上传到服务器，移动到想要放的位置，我存放在了/opt/目录下，解压缩：
+到Hadoop官网http://hadoop.apache.org/选择想用版本的Hadoop安装包(目前的最新稳定版是2.7.3) Ubuntu64bit操作系统选择.tar.gz后缀的压缩包。使用winscp上传到服务器，移动到想要放的位置，我存放在了/opt/目录下，解压缩：
 
 ```
 tar zxvf hadoop-2.7.3.tar.gz
