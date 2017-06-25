@@ -65,10 +65,12 @@ cat /home/id_rsa.pub >> /root/.ssh/authorized_keys
 在实际操作中，这是一个比较繁琐又容易出错的工作，相对简单的方式是将所有的id_rsa.pub先集中到一个服务器上，配置好这个服务器的authorized_keys，然后将authorized_keys复制到所有其他服务器上，取代原先的文件。
 
 #单机配置和文件复制
+---------------------
 
-集群需要多次的重复配置，为了减少重复劳动，可以先在Master主机上将主要配置按[单机配置](http://blog.csdn.net/picway/article/details/70157857)都配好，然后使用scp命令将包括jdk，hadoop文件夹传输到slaves服务器。
+集群需要多次的重复配置，为了减少重复劳动，可以先在Master主机上将主要配置按[单机配置](https://github.com/wayblink/Naive/edit/master/Hadoop%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE.md)都配好，然后使用scp命令将包括jdk，hadoop文件夹传输到slaves服务器。
 
 #Master节点配置
+----------------------
 
 Master节点和Slave节点的配置略有不同，主要体现在HDFS和YARN的配置上，在这里我们将HDFS的NameNode和YARN的ResourceManager放在了同一节点，实际上可以分开，而且在真是工程建议分开。
 
@@ -210,6 +212,7 @@ PS：新的3.0.0版本貌似改为了workers
 
 
 #Slaves节点配置
+--------------------
 
 Slaves节点和Master节点配置可以基本相同，在HDFS上将namenode改成datanode即可
 
@@ -241,6 +244,7 @@ Slaves节点和Master节点配置可以基本相同，在HDFS上将namenode改�
 ```
 
 #启动集群
+-------------------------------
 
 **1，最后的准备工作**
 至此配置基本完成，在启动之前，现将各个节点的namenode和datanode的存储文件夹清空或删除（master删掉datanode，slave删掉namenode）。
