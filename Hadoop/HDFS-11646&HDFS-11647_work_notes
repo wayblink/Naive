@@ -63,6 +63,17 @@ getOpt，getOptValue，getOpts等管理参数的方法，以及一些参数错�
 
 ##2，RPC基础
 
+在做这个工作的涉及到client和namenode之间的通信，Hadoop节点与节点之间的通信都是通过Hadoop自己的RPC实现的。  
+
+RPC(Remote Procedure Control)远程过程调用协议，它是一种通过网络从远程计算机程序上请求服务，而不需要了解底层网络技术的协议。
+RPC协议假定某些传输协议的存在，如TCP或UDP，为通信程序之间携带信息数据。在OSI网络通信模型中，RPC跨越了传输层和应用层。
+RPC使得开发包括网络分布式多程序在内的应用程序更加容易。
+
+关于RPC的讲解：有几个较好的文章：
+http://www.cnblogs.com/edisonchou/p/4285817.html
+http://blog.csdn.net/thomas0yang/article/details/41211259
+
+需要注意的是其中内容略有淘汰，其中的getServer方法已经取消，转为builder-build构造模式。
 
 
 
