@@ -36,6 +36,35 @@ ComandFactory.java是Command的一个工厂类，Command需要被注册到工厂
 CommandFormat.java负责命令行格式和参数，它包含着两个map域来存储有值得参数和无值的参数，minpar，maxpar来存储命令参数的最多最少值。
 getOpt，getOptValue，getOpts等管理参数的方法，以及一些参数错误的信息类，如TooManyArgumentsException，NotEnoughArgumentsException等。
 
+一个Command也就基于这几个类来创建完整的功能：  
+
+以Count.java为例：
+
+第一个方法是向CommandFactory注册：
+```
+  public static void registerCommands(CommandFactory factory) {
+    factory.addClass(Count.class, "-count");
+  }
+```
+
+然后是一串可选参数的声明：
+```
+  private static final String OPTION_QUOTA = "q";
+  private static final String OPTION_HUMAN = "h";
+  ......
+```
+
+再然后是：NAME，USAGE，DESCRIPTION的具体化
+
+再之后是，一些boolean值，用于判别一个命令是否使用了某个参数。
+
+最后是实际的功能实现，processPath，processOption等等，值得注意的是，对于这个命令类的对象，上面的这些boolean值是通过CommandFormat将输入命令行解析，
+后通过getOpt和getOptValue中获取的，然后根据这些具体值，分情况执行功能逻辑。
+
+##2，RPC基础
+
+
+
 
 
 
