@@ -1,1 +1,53 @@
+HDFS-11975 
+
+2017/6/28
+
+call stack
+
+ECAdmin.java:/** CLI for the erasure code encoding operations.*/
+  -private class SetECPolicyCommand
+    -public int run(Configuration conf, List<String> args) throws IOException
+      -dfs.setErasureCodingPolicy(p, ecPolicyName);
+        |
+       DistributedFileSystem.java
+    
+DistributedFileSystem.java
+/**
+ * Implementation of the abstract FileSystem for the DFS system.
+ * This object is the way end-user code interacts with a Hadoop
+ * DistributedFileSystem.
+ */
+   -public void setErasureCodingPolicy(final Path path,final String ecPolicyName) throws IOException 
+     -dfs.setErasureCodingPolicy(getPathName(p), ecPolicyName);
+       |
+      DFSClient.java
+      
+DFSClient.java
+/**
+ * DFSClient can connect to a Hadoop Filesystem and
+ * perform basic file tasks.  It uses the ClientProtocol
+ * to communicate with a NameNode daemon, and connects
+ * directly to DataNodes to read/write block data.
+ *
+ * Hadoop DFS users should obtain an instance of
+ * DistributedFileSystem, which uses DFSClient to handle
+ * filesystem tasks.
+ */
+  -public void setErasureCodingPolicy(String src, String ecPolicyName)
+    --namenode.setErasureCodingPolicy(src, ecPolicyName);
+       |
+      ClientProtocol.java
+      
+ClientProtocol.java
+/**
+ * ClientProtocol is used by user code via the DistributedFileSystem class to
+ * communicate with the NameNode.  User code can manipulate the directory
+ * namespace, as well as open/close file streams, etc.
+ */
+   -  void setErasureCodingPolicy(String src, String ecPolicyName)
+      throws IOException;
+ 
+      
+ 
+
 
