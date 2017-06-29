@@ -191,11 +191,11 @@ vim $HADOOP_HOME/etc/hadoop/hdfs-site.xml
     </property>
     <property>
 	<name>dfs.namenode.name.dir</name>
-	<value>file:/opt/hadoop/hadoop_data/hdfs/namenode</value>
+	<value>file:/opt/hadoop/hdfs/name</value>
     </property>
     <property>
 	<name>dfs.datanode.data.dir</name>
-	<value>file:/opt/hadoop/hadoop_data/hdfs/datanode</value>
+	<value>file:/opt/hadoop/hdfs/data</value>
     </property>
 </configuration>
 ```
@@ -203,8 +203,8 @@ vim $HADOOP_HOME/etc/hadoop/hdfs-site.xml
 三个属性分别设置Blocks备份的份数，Namenode数据存储目录和DataNode数据存储目录，可以自行修改，目录需要新建
 
 ```
-mkdir $HADOOP_HOME/hadoop_data/hdfs/namenode
-mkdir $HADOOP_HOME/hadoop_data/hdfs/datanode
+mkdir -p $HADOOP_HOME/hdfs/name
+mkdir -p $HADOOP_HOME/hdfs/data
 ```
 
 4，编辑mapred-site.xml
