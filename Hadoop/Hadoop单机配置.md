@@ -150,9 +150,9 @@ vim $HADOOP_HOME/etc/hadoop/core-site.xml
 
 ```
 <configuration>
-	<property>
-		<name>fs.default.name</name>
-		<value>hdfs://localhost:9000</value>
+    <property>
+	<name>fs.default.name</name>
+	<value>hdfs://localhost:9000</value>
     </property>
 </configuration>
 ```
@@ -166,13 +166,13 @@ vim $HADOOP_HOME/etc/hadoop/yarn-site.xml
 
 ```
 <configuration>
-	<property>
-		<name>yarn.nodemanager.aux-services</name>
-		<value>mapreduce_shuffle</value>
+    <property>
+	<name>yarn.nodemanager.aux-services</name>
+	<value>mapreduce_shuffle</value>
     </property>
-	<property>
-		<name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
-		<value>org.apache.hadoop.mapred.ShuffleHandler</value>
+    <property>
+	<name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+	<value>org.apache.hadoop.mapred.ShuffleHandler</value>
     </property>
 </configuration>
 ```
@@ -185,17 +185,17 @@ vim $HADOOP_HOME/etc/hadoop/hdfs-site.xml
 在configuration键值对中添加新内容，结果如下：
 ```
 <configuration>
-	<property>
-		<name>dfs.replication</name>
-		<value>3</value>
-	</property>
-	<property>
-		<name>dfs.namenode.name.dir</name>
-		<value>file:/opt/hadoop/hadoop_data/hdfs/namenode</value>
+    <property>
+	<name>dfs.replication</name>
+	<value>3</value>
     </property>
-	<property>
-		<name>dfs.datanode.data.dir</name>
-		<value>file:/opt/hadoop/hadoop_data/hdfs/datanode</value>
+    <property>
+	<name>dfs.namenode.name.dir</name>
+	<value>file:/opt/hadoop/hadoop_data/hdfs/namenode</value>
+    </property>
+    <property>
+	<name>dfs.datanode.data.dir</name>
+	<value>file:/opt/hadoop/hadoop_data/hdfs/datanode</value>
     </property>
 </configuration>
 ```
@@ -219,9 +219,9 @@ cp $HADOOP_HOME/etc/hadoop/mapred-site.xml.template $HADOOP_HOME/etc/hadoop/mapr
 
 ```
 <configuration>
-	<property>
-		<name>mapreduce.framework.name</name>
-		<value>yarn</value>
+    <property>
+	<name>mapreduce.framework.name</name>
+	<value>yarn</value>
     </property>
 </configuration>
 ```
