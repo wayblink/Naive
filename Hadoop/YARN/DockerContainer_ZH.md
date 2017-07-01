@@ -12,8 +12,6 @@
   limitations under the License. See accompanying LICENSE file.
 -->
 
-Launching Applications Using Docker Containers
-==============================================
 
 使用Docker容器启动应用程序
 =============================
@@ -53,8 +51,6 @@ LCE的Docker支持仍在開發過程中。 可以跟蹤
 [YARN-3611]（https://issues.apache.org/jira/browse/YARN-3611），
 了解改进進度。
 
-Cluster Configuration
----------------------
 
 集群配置
 ---------------------
