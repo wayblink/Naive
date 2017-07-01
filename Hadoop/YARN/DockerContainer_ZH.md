@@ -25,9 +25,9 @@
 
 
 
-[Docker]（https://www.docker.io/）将易于使用的Linux容器和易於面向容器構建的鏡像文件结合在一起。
+[Docker]（https://www.docker.io/） 将易于使用的Linux容器和易於面向容器構建的鏡像文件结合在一起。
 简而言之，Docker使用户能够将应用程序与其運行所需要的環境變量捆绑在一起。 
-更多关于Docker，看他们的[文档]（http://docs.docker.com）。
+更多关于Docker，看他们的[文档]（http://docs.docker.com） 。
 
 
 
@@ -48,7 +48,7 @@ Docker为YARN提供了一致性（所有YARN容器都将具有相同的软件环
 
 
 LCE的Docker支持仍在開發過程中。 可以跟蹤
-[YARN-3611]（https://issues.apache.org/jira/browse/YARN-3611），
+[YARN-3611]（https://issues.apache.org/jira/browse/YARN-3611） ，
 了解改进進度。
 
 
