@@ -78,6 +78,38 @@ ssh username@hostIP
 
 初始情况，ssh连接localhost会要求输入密码，我们需要设置免密码，这一步非常重要，因为Hadoop集群相互之间通信不可能每次都要输入密码，因此要设置彼此间的免密码通信，这样才能发挥出分布式存储计算的优势。
 
+PS：如果使用Ubuntu用户版而不是服务器系统的话，在这一步可能遇到的问题是ssh链接失败，Permission Denied，密码明明正确却登陆不上。
+这是因为ssh默认设置不允许root用户登陆localhost，解决方式如下：
+
+1，进入root权限
+
+2，修改ssh配置：`vim /etc/ssh/sshd_config`
+
+找到如下一段：
+
+```
+# Authentication:
+LoginGraceTime 120
+PermitRootLogin yes
+StrictModes yes
+```
+默认情况下`PermitRooLogin`不是yes，改成yes，保存退出。
+
+3，重启ssh服务
+
+```
+/etc/init.d/ssh restart
+```
+
+4,重试ssh
+
+```
+ssh localhost
+```
+
+这时应该可以连接了。
+
+
 2，设置免密码登录：
 ```
 ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
