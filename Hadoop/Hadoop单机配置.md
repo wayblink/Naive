@@ -74,7 +74,7 @@ ssh username@hostIP
 
 1，尝试ssh连接localhost
 `ssh localhost`
-如果本机没有ssh，先按提示安装ssh,记得是`sudo apt-get install openssh`
+如果本机没有ssh，先按提示安装ssh,记得是`sudo apt-get install openssh-server`
 
 初始情况，ssh连接localhost会要求输入密码，我们需要设置免密码，这一步非常重要，因为Hadoop集群相互之间通信不可能每次都要输入密码，因此要设置彼此间的免密码通信，这样才能发挥出分布式存储计算的优势。
 
