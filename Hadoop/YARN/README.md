@@ -1,17 +1,12 @@
 This is leaning notes for Hadoop Yarn
 
-The source code structure:
+Yarn-start是yarn的学习笔记；
 
-Modules
--------
-YARN consists of multiple modules. The modules are listed below as per the directory structure:
+DockerContainer-offical.md是从Hadoop项目中复制出来的关于Docker on Yarn的文档；
 
-hadoop-yarn-api - Yarn's cross platform external interface
+DockerContainer-ZH.md是DockerContainer-offical.md的翻译，未经整理；
 
-hadoop-yarn-common - Utilities which can be used by yarn clients and server
+LCE-Configuration是Linux Container Executor的配置说明；
 
-hadoop-yarn-server - Implementation of the hadoop-yarn-api  
-	hadoop-yarn-server-common - APIs shared between resourcemanager and nodemanager  
-	hadoop-yarn-server-nodemanager (TaskTracker replacement)  
-	hadoop-yarn-server-resourcemanager (JobTracker replacement)  
+
 
