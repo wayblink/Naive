@@ -37,3 +37,4 @@ Procedure
 
     Restart YARN so that the changes take effect.
 
+http://justcoding.iteye.com/blog/1929063
