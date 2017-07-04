@@ -1,5 +1,3 @@
-Configuring YARN container execution
-
 Yarn Linux Container Executor配置
 ================================
 
