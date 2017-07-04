@@ -1,8 +1,11 @@
 HDFS-11975 
 
-2017/6/28
+HDFS-11975是需要给HDFS Erasurecoding设置一个系统默认值，在setPolicy命令不指定policy时使用默认policy。
 
-call stack
+实现的基本思路是增加一个Configuration项（增加配置项需要在对应的配置项java类加一个条目，再在xml中增加一个条目）；
+在setPolicy的执行中增加对policyName的判断逻辑，根据ecPolicyName传入值和读取配置值，做相应处理。
+
+调用栈分析
 
 ECAdmin.java:/** CLI for the erasure code encoding operations.*/
   -private class SetECPolicyCommand
@@ -44,8 +47,33 @@ ClientProtocol.java
  * communicate with the NameNode.  User code can manipulate the directory
  * namespace, as well as open/close file streams, etc.
  */
-   -  void setErasureCodingPolicy(String src, String ecPolicyName)
-      throws IOException;
+  -void setErasureCodingPolicy(String src, String ecPolicyName) throws IOException;
+  |
+  |
+  RPC
+  |
+  |
+NameNodeRpcServer.java
+  -public void setErasureCodingPolicy(String src, String ecPolicyName) throws IOException
+
+
+最初的实现，我直接ECAdmin层进行逻辑判断，仔细想过发现不妥，于是扒它的调用栈，发现它通过ClientProtocol，使用RPC通信交给NameNode来做处理。
+因此把判断逻辑交给NameNodeRPCServer是合理的做法。
+
+在这个过程中：
+
+1，加深了对RPC的了解
+2，熟悉了Client-Server端的代码结构
+3，一些关于protobuf和configuration的细节
+
+protobuf的required元素不能为空，在我要传递空的ecPolicyName时出现问题，因此在RPC前后分别加一个判断：
+client端判断如果为空，则给它附一个特殊的值；server端判断如果是这个特殊值则说明其实是空，按空来处理。
+
+configuration不是个简单的entity，是包含了文件系统的类，初始化new Configuration()可以直接加载到配置信息内容；
+因此只需要在需要时初始化，然后conf.get（）获取属性值即可。
+
+对于有值的configuration，一般会设置一个配置项，一个带默认值的配置项，带默认值的配置项应以_DEFAULT结尾；
+有测试检测配置项和配置文件是否匹配，以_DEFAULT结尾的配置项不需要在xml中配置，测试方法会根据_DEFAULT尾自动识别。
  
       
  
