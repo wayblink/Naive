@@ -18,7 +18,7 @@ NodeManager没有正常启动：
 
 解决方式：
 
-yarn-site.xml的配置仍然按照[https://github.com/wayblink/Naive/blob/master/Hadoop/Hadoop%E5%8D%95%E6%9C%BA%E9%85%8D%E7%BD%AE.md]中的进行
+yarn-site.xml的配置仍然按照[Haddop单机配置](https://github.com/wayblink/Naive/blob/master/Hadoop/Hadoop%E5%8D%95%E6%9C%BA%E9%85%8D%E7%BD%AE.md)中的进行
 
 ```
 <property>
@@ -37,7 +37,7 @@ yarn-site.xml的配置仍然按照[https://github.com/wayblink/Naive/blob/master
 |:---- |:---- |:---- |
 | `yarn.nodemanager.aux-services` | mapreduce\_shuffle | Shuffle service that needs to be set for Map Reduce applications. |
 
-Spark官方文档[http://spark.apache.org/docs/latest/running-on-yarn.html]说需要更改属性。但修改之后NodeManager不能正常启动，原因不明，暂时放弃。
+[Spark官方文档](http://spark.apache.org/docs/latest/running-on-yarn.html)说需要更改属性。但修改之后NodeManager不能正常启动，原因不明，暂时放弃。
 
 Spark-submit时出现ClosedChannelException错误
 --------------------------------------------
@@ -55,7 +55,7 @@ $SPARK_HOME/examples/jars/spark-examples_2.11-2.1.0.jar\
 ```
 提交spark任务到yarn集群上，出现运算失败，经常报的错误是`ClosedChannelException`。
 
-在[https://stackoverflow.com/questions/38988941/running-yarn-with-spark-not-working-with-java-8]查找到一个有效的解决方式：
+在[stackoverflow](https://stackoverflow.com/questions/38988941/running-yarn-with-spark-not-working-with-java-8)查找到一个有效的解决方式：
 
 首先更改yarn-env.sh和hadoop-env.sh中所有的HEAP_SIZE或类似的JAVA堆内存上限设置，默认是1000M,将它们提高到机器可以承受的相对较高的值。
 
