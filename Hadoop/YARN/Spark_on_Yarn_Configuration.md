@@ -44,13 +44,13 @@ Spark-submit时出现ClosedChannelException错误
 
 在Yarn正常启动后，使用命令
 ```
-spark-submit --class org.apache.spark.examples.SparkPi\
---master yarn\
---deploy-mode client\
---driver-memory 1g\
---executor-memory 1g\
---executor-cores 2\
-$SPARK_HOME/examples/jars/spark-examples_2.11-2.1.0.jar\
+spark-submit --class org.apache.spark.examples.SparkPi \
+--master yarn \
+--deploy-mode client \
+--driver-memory 1g \
+--executor-memory 1g \
+--executor-cores 2 \
+$SPARK_HOME/examples/jars/spark-examples_2.11-2.1.0.jar \
 10
 ```
 提交spark任务到yarn集群上，出现运算失败，经常报的错误是`ClosedChannelException`。
