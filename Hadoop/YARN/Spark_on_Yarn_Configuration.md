@@ -13,6 +13,18 @@ Spark on Yarn配置和问题解决
 
 遇到的主要的坑是，修改yarn-site.xml配置导致NodeManager没有正常启动，以及Spark-submit时出现ClosedChannelException错误。
 
+基本Spark配置和Hadoop配置：
+------------------------
+
+在`$SPARK_HOME/conf/spark-env.sh`中添加以下内容
+```
+export JAVA_HOME=/path/to/java
+export SCALA_HOME=/path/to/scala
+export HADOOP_HOME=/path/to/hadoop
+export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+```
+其他Spark和Hadoop配置如常。
+
 NodeManager没有正常启动：
 -----------------------
 
@@ -71,15 +83,16 @@ $SPARK_HOME/examples/jars/spark-examples_2.11-2.1.0.jar \
     <value>false</value>
 </property>
 ```
+ WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+ ---------------------------------
+ 
+ 运行上面spark-submit时出现警告：因为不能引入native库。
+ 
+ 需要设置一下环境变量
+ ```
+ export LD_LIBRARY_PATH=$HADOOP_HOME/lib/native/
+ ```
+ 
 
-其他Spark配置和Hadoop配置：
-------------------------
 
-在`$SPARK_HOME/conf/spark-env.sh`中添加以下内容
-```
-export JAVA_HOME=/path/to/java
-export SCALA_HOME=/path/to/scala
-export HADOOP_HOME=/path/to/hadoop
-export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
-```
-其他Spark和Hadoop配置如常。
+
