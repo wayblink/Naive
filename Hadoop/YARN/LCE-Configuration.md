@@ -99,6 +99,6 @@ mvn package -Pdist,native -DskipTests -Dtar -Dcontainer-executor.conf.dir=$HADOO
 ```
 在编译好的target/native/usr/local/路径下可以找到编译好的container-executor,替换即可。
 
-替换之后可以执行$HADOOP_HOME/bin/container-executor -checksetup,如果没有错误信息，基本上问题就解决了。
+替换之后可以执行$HADOOP_HOME/bin/container-executor -checksetup,可能仍然会有权限问题，根据提示修改即可，直到没有错误信息，基本上问题就解决了。
 
 
