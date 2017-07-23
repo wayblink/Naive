@@ -274,7 +274,7 @@ Example: Spark
 要在Docker容器中运行Spark shell，请运行以下命令：
 
 ```
-spark-shell --master yarn --conf spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE=docker --conf spark.executorEnv.YARN_CONTAINERER_RUNTIME_DOCKER_IMAGE=hadoop-docker --conf spark.yarn.AppMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE=hadoop-docker --conf spark.yarn.AppMasterEnv.YARN_CONTAINER_RUNTIME_TYPE=docker
+spark-shell --master yarn --conf spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE=docker --conf spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE=ubuntu:sdy --conf spark.yarn.AppMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE=ubuntu:sdy --conf spark.yarn.AppMasterEnv.YARN_CONTAINER_RUNTIME_TYPE=docker
 ```
 
 请注意，独立配置了应用程序主控和执行程序。 在这个例子中，我们使用的hadoop-docker鏡像。
