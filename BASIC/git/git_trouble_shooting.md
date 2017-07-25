@@ -12,7 +12,8 @@ error: server certificate verification failed
 
 ```
 Another cause of this problem might be that your clock might be off. Certificates are time sensitive.
-This was my problem. My university was blocking ntp packets, which was preventing my system from updating time. Once I configured the university ntp servers things were working again. Thanks for this tip! –  Kyle Mar 9 at 16:51
+This was my problem. My university was blocking ntp packets, which was preventing my system from updating time. 
+Once I configured the university ntp servers things were working again. Thanks for this tip! –  Kyle Mar 9 at 16:51
 ```
 
 问题重现
