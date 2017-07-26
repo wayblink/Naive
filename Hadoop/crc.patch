@@ -1,0 +1,281 @@
+diff --git a/hadoop-common-project/hadoop-common/src/CMakeLists.txt b/hadoop-common-project/hadoop-common/src/CMakeLists.txt
+index 10b0f23..b9e4422 100644
+--- a/hadoop-common-project/hadoop-common/src/CMakeLists.txt
++++ b/hadoop-common-project/hadoop-common/src/CMakeLists.txt
+@@ -295,4 +295,6 @@ add_executable(test_bulk_crc32
+     ${SRC}/util/bulk_crc32.c
+     ${BULK_CRC_ARCH_SOURCE_FIlE}
+     ${TST}/util/test_bulk_crc32.c
++    ${SRC}/util/NativeCrc32.c
+ )
++target_link_libraries(test_bulk_crc32 ${CMAKE_DL_LIBS})
+\ No newline at end of file
+diff --git a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/DataChecksum.java b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/DataChecksum.java
+index 03946af..f36f011 100644
+--- a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/DataChecksum.java
++++ b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/DataChecksum.java
+@@ -43,12 +43,29 @@
+   public static final int CHECKSUM_CRC32C  = 2;
+   public static final int CHECKSUM_DEFAULT = 3; 
+   public static final int CHECKSUM_MIXED   = 4;
+- 
++  //isa-l
++  public static final int CHECKSUM_CRC32_ISCSI = 5;
++  public static final int CHECKSUM_CRC32_IEEE = 6;
++  public static final int CHECKSUM_CRC64_ECMA_NORM = 7;
++  public static final int CHECKSUM_CRC64_ECMA_REFL = 8;
++  public static final int CHECKSUM_CRC64_ISO_NORM = 9;
++  public static final int CHECKSUM_CRC64_ISO_REFL = 10;
++  public static final int CHECKSUM_CRC64_JONES_NORM = 11;
++  public static final int CHECKSUM_CRC64_JONES_REFL = 12;
+   /** The checksum types */
+   public enum Type {
+     NULL  (CHECKSUM_NULL, 0),
+     CRC32 (CHECKSUM_CRC32, 4),
+     CRC32C(CHECKSUM_CRC32C, 4),
++    //isa-l
++    CRC32_IEEE(CHECKSUM_CRC32_IEEE, 4),
++    CRC32_ISCSI(CHECKSUM_CRC32_ISCSI, 4),
++    CRC64_ECMA_NORM(CHECKSUM_CRC64_ECMA_NORM,4),
++    CRC64_ECMA_REFL(CHECKSUM_CRC64_ECMA_REFL,4),
++    CRC64_ISO_NORM(CHECKSUM_CRC64_ISO_NORM,4),
++    CRC64_ISO_REFL(CHECKSUM_CRC64_ISO_REFL,4),
++    CRC64_JONES_NORM(CHECKSUM_CRC64_JONES_NORM,4),
++    CRC64_JONES_REFL(CHECKSUM_CRC64_JONES_REFL,4),
+     DEFAULT(CHECKSUM_DEFAULT, 0), // This cannot be used to create DataChecksum
+     MIXED (CHECKSUM_MIXED, 0); // This cannot be used to create DataChecksum
+ 
+@@ -90,6 +107,12 @@ public static DataChecksum newDataChecksum(Type type, int bytesPerChecksum ) {
+       return new DataChecksum(type, newCrc32(), bytesPerChecksum );
+     case CRC32C:
+       return new DataChecksum(type, new PureJavaCrc32C(), bytesPerChecksum);
++    case CRC32_IEEE:
++      return new DataChecksum(type, new PureJavaCrc32C(), bytesPerChecksum);
++    case CRC32_ISCSI:
++      return new DataChecksum(type, new PureJavaCrc32C(), bytesPerChecksum);
++    case CRC64_ECMA_NORM:
++      return new DataChecksum(type, new PureJavaCrc32C(), bytesPerChecksum);
+     default:
+       return null;  
+     }
+diff --git a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/NativeCrc32.java b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/NativeCrc32.java
+index 0669b0a..b863c29 100644
+--- a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/NativeCrc32.java
++++ b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/NativeCrc32.java
+@@ -140,4 +140,13 @@ private static native void nativeComputeChunkedSumsByteArray(
+   // and make them available in the native code header.
+   public static final int CHECKSUM_CRC32 = DataChecksum.CHECKSUM_CRC32;
+   public static final int CHECKSUM_CRC32C = DataChecksum.CHECKSUM_CRC32C;
++  //isa-l CRC algorithm
++  public static final int CHECKSUM_CRC32_IEEE = DataChecksum.CHECKSUM_CRC32_IEEE;
++  public static final int CHECKSUM_CRC32_ISCSI = DataChecksum.CHECKSUM_CRC32_ISCSI;
++  public static final int CHECKSUM_CRC64_ECMA_NORM = DataChecksum.CHECKSUM_CRC64_ECMA_NORM;
++  public static final int CHECKSUM_CRC64_ECMA_REFL = DataChecksum.CHECKSUM_CRC64_ECMA_REFL;
++  public static final int CHECKSUM_CRC64_ISO_NORM = DataChecksum.CHECKSUM_CRC64_ISO_NORM;
++  public static final int CHECKSUM_CRC64_ISO_REFL = DataChecksum.CHECKSUM_CRC64_ISO_REFL;
++  public static final int CHECKSUM_CRC64_JONES_NORM = DataChecksum.CHECKSUM_CRC64_JONES_NORM;
++  public static final int CHECKSUM_CRC64_JONES_REFL = DataChecksum.CHECKSUM_CRC64_JONES_REFL;
+ }
+diff --git a/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/NativeCrc32.c b/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/NativeCrc32.c
+index 3fceb02..ff50f5c 100644
+--- a/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/NativeCrc32.c
++++ b/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/NativeCrc32.c
+@@ -110,6 +110,22 @@ static int convert_java_crc_type(JNIEnv *env, jint crc_type) {
+       return CRC32_ZLIB_POLYNOMIAL;
+     case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC32C:
+       return CRC32C_POLYNOMIAL;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC32_ISCSI:
++      return CRC32_ISCSI;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC32_IEEE:
++      return CRC32_IEEE;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC64_ECMA_NORM:
++      return CRC64_ECMA_NORM;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC64_ECMA_REFL:
++      return CRC64_ECMA_REFL;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC64_ISO_NORM:
++      return CRC64_ISO_NORM;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC64_ISO_REFL:
++      return CRC64_ISO_REFL;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC64_JONES_NORM:
++      return CRC64_JONES_NORM;
++    case org_apache_hadoop_util_NativeCrc32_CHECKSUM_CRC64_JONES_REFL:
++      return CRC64_JONES_REFL;
+     default:
+       THROW(env, "java/lang/IllegalArgumentException",
+         "Invalid checksum type");
+diff --git a/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.c b/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.c
+index b3bb699..1d36bfe 100644
+--- a/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.c
++++ b/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.c
+@@ -50,11 +50,23 @@ static void pipelined_crc32c_sb8(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
+ static void pipelined_crc32_zlib_sb8(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
+                                  const uint8_t *p_buf, size_t block_size, int num_blocks);
+ 
++// ISAL pipeline function
++static void pipelined_crc32_ieee(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
++                                 const uint8_t *p_buf, size_t block_size, int num_blocks);
++static void pipelined_crc32_iscsi(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
++                                 const uint8_t *p_buf, size_t block_size, int num_blocks);
++static void pipelined_crc64(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
++                                  const uint8_t *p_buf, size_t block_size, int num_blocks);
++
+ // Satically initialise the function pointers to the software versions
+ // If a HW implementation is available they will subsequently be initialised in the dynamic
+ // initialisers to point to the HW routines.
+ crc_pipelined_func_t pipelined_crc32c_func = pipelined_crc32c_sb8;
+ crc_pipelined_func_t pipelined_crc32_zlib_func = pipelined_crc32_zlib_sb8;
++// ISAL pipeline function
++crc_pipelined_func_t pipelined_crc32_ieee_func = pipelined_crc32_ieee;
++crc_pipelined_func_t pipelined_crc32_iscsi_func = pipelined_crc32_iscsi;
++crc_pipelined_func_t pipelined_crc64_isal_func = pipelined_crc64;
+ 
+ static inline int store_or_verify(uint32_t *sums, uint32_t crc,
+                                    int is_verify) {
+@@ -78,6 +90,7 @@ int bulk_crc(const uint8_t *data, size_t data_len,
+   int remainder = data_len % bytes_per_checksum;
+   uint32_t crc;
+   crc_pipelined_func_t crc_pipelined_func;
++  void *handle=dlopen(HADOOP_ISAL_LIBRARY,RTLD_LAZY|RTLD_GLOBAL);
+   switch (checksum_type) {
+     case CRC32_ZLIB_POLYNOMIAL:
+       crc_pipelined_func = pipelined_crc32_zlib_func;
+@@ -85,6 +98,38 @@ int bulk_crc(const uint8_t *data, size_t data_len,
+     case CRC32C_POLYNOMIAL:
+       crc_pipelined_func = pipelined_crc32c_func;
+       break;
++    case CRC32_ISCSI:
++      crc_pipelined_func = pipelined_crc32_iscsi_func;
++      isal_crc32_iscsi_pointer = dlsym(handle,"crc32_iscsi");
++      break;
++    case CRC32_IEEE:
++      crc_pipelined_func = pipelined_crc32_ieee_func;
++      isal_crc32_ieee_pointer = dlsym(handle,"crc32_ieee");
++      break;
++    case CRC64_ECMA_NORM:
++      crc_pipelined_func = pipelined_crc64_isal_func;
++      isal_crc64_pointer = dlsym(handle,"crc64_ecma_norm");
++      break;
++    case CRC64_ECMA_REFL:
++      crc_pipelined_func = pipelined_crc64_isal_func;
++      isal_crc64_pointer = dlsym(handle,"crc64_ecma_refl");
++      break;
++    case CRC64_ISO_NORM:
++      crc_pipelined_func = pipelined_crc64_isal_func;
++      isal_crc64_pointer = dlsym(handle,"crc64_iso_norm");
++      break;
++    case CRC64_ISO_REFL:
++      crc_pipelined_func = pipelined_crc64_isal_func;
++      isal_crc64_pointer = dlsym(handle,"crc64_iso_refl");
++      break;
++    case CRC64_JONES_NORM:
++      crc_pipelined_func = pipelined_crc64_isal_func;
++      isal_crc64_pointer = dlsym(handle,"crc64_jones_norm");
++      break;
++    case CRC64_JONES_REFL:
++      crc_pipelined_func = pipelined_crc64_isal_func;
++      isal_crc64_pointer = dlsym(handle,"crc64_jones_refl");
++      break;
+     default:
+       return is_verify ? INVALID_CHECKSUM_TYPE : -EINVAL;
+   }
+@@ -242,3 +287,36 @@ static void pipelined_crc32_zlib_sb8(uint32_t *crc1, uint32_t *crc2, uint32_t *c
+   if (num_blocks >= 3)
+     *crc3 = crc32_zlib_sb8(*crc3, p_buf+2*block_size, block_size);
+ }
++
++static void pipelined_crc32_ieee(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
++                                      const uint8_t *p_buf, size_t block_size, int num_blocks) {
++   uint64_t bsize=block_size;
++   assert(num_blocks >= 1 && num_blocks <= 3 && "invalid num_blocks");
++     *crc1 = isal_crc32_ieee_pointer(*crc1, p_buf, bsize);
++   if (num_blocks >= 2)
++     *crc2 = isal_crc32_ieee_pointer(*crc2, p_buf+block_size, bsize);
++   if (num_blocks >= 3)
++     *crc3 = isal_crc32_ieee_pointer(*crc3, p_buf+2*block_size, bsize);
++}
++
++static void pipelined_crc32_iscsi(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
++                                        const uint8_t *p_buf, size_t block_size, int num_blocks) {
++     assert(num_blocks >= 1 && num_blocks <= 3 && "invalid num_blocks");
++     unsigned char *buffer=p_buf;
++       *crc1 = isal_crc32_iscsi_pointer( buffer, block_size,*crc1);
++     if (num_blocks >= 2)
++       *crc2 = isal_crc32_iscsi_pointer( buffer+block_size, block_size,*crc2);
++     if (num_blocks >= 3)
++       *crc3 = isal_crc32_iscsi_pointer( buffer+2*block_size, block_size,*crc3);
++}
++
++static void pipelined_crc64(uint32_t *crc1, uint32_t *crc2, uint32_t *crc3,
++                                        const uint8_t *p_buf, size_t block_size, int num_blocks) {
++   uint64_t bsize=block_size;
++   assert(num_blocks >= 1 && num_blocks <= 3 && "invalid num_blocks");
++     *crc1 = isal_crc64_pointer(*crc1, p_buf, bsize);
++   if (num_blocks >= 2)
++     *crc2 = isal_crc64_pointer(*crc2, p_buf+block_size, bsize);
++   if (num_blocks >= 3)
++     *crc3 = isal_crc64_pointer(*crc3, p_buf+2*block_size, bsize);
++}
+diff --git a/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.h b/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.h
+index b38a65a..c223fcb 100644
+--- a/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.h
++++ b/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/util/bulk_crc32.h
+@@ -28,6 +28,16 @@
+ #define CRC32C_POLYNOMIAL 1
+ #define CRC32_ZLIB_POLYNOMIAL 2
+ 
++// Constants for ISA-L CRC algorithms
++#define CRC32_ISCSI 5
++#define CRC32_IEEE 6
++#define CRC64_ECMA_NORM 7
++#define CRC64_ECMA_REFL 8
++#define CRC64_ISO_NORM 9
++#define CRC64_ISO_REFL 10
++#define CRC64_JONES_NORM 11
++#define CRC64_JONES_REFL 12
++
+ // Return codes for bulk_verify_crc
+ #define CHECKSUMS_VALID 0
+ #define INVALID_CHECKSUM_DETECTED -1
+@@ -70,4 +80,11 @@ extern int bulk_crc(const uint8_t *data, size_t data_len,
+     int bytes_per_checksum,
+     crc32_error_t *error_info);
+ 
++/**
++ * Function pointer to support ISA-L CRC implements
++ */
++uint32_t  (*isal_crc32_ieee_pointer)(uint32_t init_crc,const unsigned char *buf,uint64_t len);
++unsigned int (*isal_crc32_iscsi_pointer)(unsigned char *buffer, int len, unsigned int crc_init);
++uint64_t (*isal_crc64_pointer)(uint64_t seed, const uint8_t * buf, uint64_t len);
++
+ #endif
+diff --git a/hadoop-common-project/hadoop-common/src/main/native/src/test/org/apache/hadoop/util/test_bulk_crc32.c b/hadoop-common-project/hadoop-common/src/main/native/src/test/org/apache/hadoop/util/test_bulk_crc32.c
+index ef3dbec..2d4dec8 100644
+--- a/hadoop-common-project/hadoop-common/src/main/native/src/test/org/apache/hadoop/util/test_bulk_crc32.c
++++ b/hadoop-common-project/hadoop-common/src/main/native/src/test/org/apache/hadoop/util/test_bulk_crc32.c
+@@ -107,6 +107,14 @@ int main(int argc, char **argv)
+ 
+   EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC32C_POLYNOMIAL, 512, 1000000));
+   EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC32_ZLIB_POLYNOMIAL, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC32_ISCSI, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC32_IEEE, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC64_ECMA_REFL, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC64_ECMA_NORM, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC64_ISO_REFL, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC64_ISO_NORM, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC64_JONES_NORM, 512, 1000000));
++  EXPECT_ZERO(timeBulkCrc(16 * 1024, CRC64_JONES_REFL, 512, 1000000));
+ 
+   fprintf(stderr, "%s: SUCCESS.\n", argv[0]);
+   return EXIT_SUCCESS;
+diff --git a/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/util/TestNativeCrc32.java b/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/util/TestNativeCrc32.java
+index ecc6c90..c9d436c 100644
+--- a/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/util/TestNativeCrc32.java
++++ b/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/util/TestNativeCrc32.java
+@@ -59,6 +59,7 @@
+     Collection<Object[]> params = new ArrayList<Object[]>(2);
+     params.add(new Object[] { DataChecksum.Type.CRC32 });
+     params.add(new Object[] { DataChecksum.Type.CRC32C });
++    params.add(new Object[] { DataChecksum.Type.CRC32_ISCSI });
+     return params;
+   }
+ 
