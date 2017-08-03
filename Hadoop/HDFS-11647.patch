@@ -1,0 +1,430 @@
+diff --git a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/ContentSummary.java b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/ContentSummary.java
+index 3e75951..cdbd10f 100644
+--- a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/ContentSummary.java
++++ b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/ContentSummary.java
+@@ -39,6 +39,7 @@
+   private long snapshotFileCount;
+   private long snapshotDirectoryCount;
+   private long snapshotSpaceConsumed;
++  private String erasureCodingPolicy;
+ 
+   /** We don't use generics. Instead override spaceConsumed and other methods
+       in order to keep backward compatibility. */
+@@ -81,6 +82,11 @@ public Builder snapshotSpaceConsumed(long snapshotSpaceConsumed) {
+       return this;
+     }
+ 
++    public Builder erasureCodingPolicy(String ecPolicy) {
++      this.erasureCodingPolicy = ecPolicy;
++      return this;
++    }
++
+     @Override
+     public Builder quota(long quota){
+       super.quota(quota);
+@@ -136,6 +142,7 @@ public ContentSummary build() {
+     private long snapshotFileCount;
+     private long snapshotDirectoryCount;
+     private long snapshotSpaceConsumed;
++    private String erasureCodingPolicy;
+   }
+ 
+   /** Constructor deprecated by ContentSummary.Builder*/
+@@ -175,6 +182,7 @@ private ContentSummary(Builder builder) {
+     this.snapshotFileCount = builder.snapshotFileCount;
+     this.snapshotDirectoryCount = builder.snapshotDirectoryCount;
+     this.snapshotSpaceConsumed = builder.snapshotSpaceConsumed;
++    this.erasureCodingPolicy = builder.erasureCodingPolicy;
+   }
+ 
+   /** @return the length */
+@@ -202,6 +210,10 @@ public long getSnapshotSpaceConsumed() {
+     return snapshotSpaceConsumed;
+   }
+ 
++  public String getErasureCodingPolicy() {
++    return erasureCodingPolicy;
++  }
++
+   @Override
+   @InterfaceAudience.Private
+   public void write(DataOutput out) throws IOException {
+@@ -237,6 +249,7 @@ public boolean equals(Object to) {
+           getSnapshotFileCount() == right.getSnapshotFileCount() &&
+           getSnapshotDirectoryCount() == right.getSnapshotDirectoryCount() &&
+           getSnapshotSpaceConsumed() == right.getSnapshotSpaceConsumed() &&
++          getErasureCodingPolicy().equals(right.getErasureCodingPolicy()) &&
+           super.equals(to);
+     } else {
+       return super.equals(to);
+@@ -247,7 +260,8 @@ public boolean equals(Object to) {
+   public int hashCode() {
+     long result = getLength() ^ getFileCount() ^ getDirectoryCount()
+         ^ getSnapshotLength() ^ getSnapshotFileCount()
+-        ^ getSnapshotDirectoryCount() ^ getSnapshotSpaceConsumed();
++        ^ getSnapshotDirectoryCount() ^ getSnapshotSpaceConsumed()
++        ^ getErasureCodingPolicy().hashCode();
+     return ((int) result) ^ super.hashCode();
+   }
+ 
+diff --git a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Count.java b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Count.java
+index d15ae46..8f6fc4d 100644
+--- a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Count.java
++++ b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Count.java
+@@ -55,12 +55,14 @@ public static void registerCommands(CommandFactory factory) {
+   private static final String OPTION_EXCLUDE_SNAPSHOT = "x";
+   //return the quota, namespace count and disk space usage.
+   private static final String OPTION_QUOTA_AND_USAGE = "u";
++  private static final String OPTION_ECPOLICY = "e";
+ 
+   public static final String NAME = "count";
+   public static final String USAGE =
+       "[-" + OPTION_QUOTA + "] [-" + OPTION_HUMAN + "] [-" + OPTION_HEADER
+           + "] [-" + OPTION_TYPE + " [<storage type>]] [-" +
+           OPTION_QUOTA_AND_USAGE + "] [-" + OPTION_EXCLUDE_SNAPSHOT
++          + "] [-" + OPTION_ECPOLICY
+           + "] <path> ...";
+   public static final String DESCRIPTION =
+       "Count the number of directories, files and bytes under the paths\n" +
+@@ -90,7 +92,8 @@ public static void registerCommands(CommandFactory factory) {
+           "It can also pass the value '', 'all' or 'ALL' to specify all " +
+           "the storage types.\n" +
+           "The -" + OPTION_QUOTA_AND_USAGE + " option shows the quota and \n" +
+-          "the usage against the quota without the detailed content summary.";
++          "the usage against the quota without the detailed content summary."+
++          "The -"+ OPTION_ECPOLICY +" option shows the erasure coding policy.";
+ 
+   private boolean showQuotas;
+   private boolean humanReadable;
+@@ -98,6 +101,7 @@ public static void registerCommands(CommandFactory factory) {
+   private List<StorageType> storageTypes = null;
+   private boolean showQuotasAndUsageOnly;
+   private boolean excludeSnapshots;
++  private boolean displayECPolicy;
+ 
+   /** Constructor */
+   public Count() {}
+@@ -118,7 +122,8 @@ public Count(String[] cmd, int pos, Configuration conf) {
+   protected void processOptions(LinkedList<String> args) {
+     CommandFormat cf = new CommandFormat(1, Integer.MAX_VALUE,
+         OPTION_QUOTA, OPTION_HUMAN, OPTION_HEADER, OPTION_QUOTA_AND_USAGE,
+-        OPTION_EXCLUDE_SNAPSHOT);
++        OPTION_EXCLUDE_SNAPSHOT,
++        OPTION_ECPOLICY);
+     cf.addOptionWithValue(OPTION_TYPE);
+     cf.parse(args);
+     if (args.isEmpty()) { // default path is the current working directory
+@@ -128,6 +133,7 @@ protected void processOptions(LinkedList<String> args) {
+     humanReadable = cf.getOpt(OPTION_HUMAN);
+     showQuotasAndUsageOnly = cf.getOpt(OPTION_QUOTA_AND_USAGE);
+     excludeSnapshots = cf.getOpt(OPTION_EXCLUDE_SNAPSHOT);
++    displayECPolicy = cf.getOpt(OPTION_ECPOLICY);
+ 
+     if (showQuotas || showQuotasAndUsageOnly) {
+       String types = cf.getOptValue(OPTION_TYPE);
+@@ -146,15 +152,21 @@ protected void processOptions(LinkedList<String> args) {
+     }
+ 
+     if (cf.getOpt(OPTION_HEADER)) {
++      StringBuilder headString = new StringBuilder();
+       if (showQuotabyType) {
+-        out.println(QuotaUsage.getStorageTypeHeader(storageTypes) + "PATHNAME");
++        headString.append(QuotaUsage.getStorageTypeHeader(storageTypes));
+       } else {
+         if (showQuotasAndUsageOnly) {
+-          out.println(QuotaUsage.getHeader() + "PATHNAME");
++          headString.append(QuotaUsage.getHeader());
+         } else {
+-          out.println(ContentSummary.getHeader(showQuotas) + "PATHNAME");
++          headString.append(ContentSummary.getHeader(showQuotas));
+         }
+       }
++      if(displayECPolicy){
++        headString.append("ERASURECODING_POLICY ");
++      }
++      headString.append("PATHNAME");
++      out.println(headString.toString());
+     }
+   }
+ 
+@@ -175,15 +187,26 @@ protected void processOptions(LinkedList<String> args) {
+ 
+   @Override
+   protected void processPath(PathData src) throws IOException {
++    StringBuilder outputString = new StringBuilder();
+     if (showQuotasAndUsageOnly || showQuotabyType) {
+       QuotaUsage usage = src.fs.getQuotaUsage(src.path);
+-      out.println(usage.toString(isHumanReadable(), showQuotabyType,
+-          storageTypes) + src);
++      outputString.append(usage.toString(
++          isHumanReadable(), showQuotabyType, storageTypes));
+     } else {
+       ContentSummary summary = src.fs.getContentSummary(src.path);
+-      out.println(summary.
+-          toString(showQuotas, isHumanReadable(), excludeSnapshots) + src);
++      outputString.append(summary.toString(
++          showQuotas, isHumanReadable(), excludeSnapshots));
++    }
++    if(displayECPolicy){
++      ContentSummary summary = src.fs.getContentSummary(src.path);
++      if(!summary.getErasureCodingPolicy().equals("Replicated")){
++        outputString.append("EC:");
++      }
++      outputString.append(summary.getErasureCodingPolicy());
++      outputString.append(" ");
+     }
++    outputString.append(src);
++    out.println(outputString.toString());
+   }
+ 
+   /**
+diff --git a/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md b/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md
+index e13b558..7786642 100644
+--- a/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md
++++ b/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md
+@@ -141,7 +141,7 @@ Similar to get command, except that the destination is restricted to a local fil
+ count
+ -----
+ 
+-Usage: `hadoop fs -count [-q] [-h] [-v] [-x] [-t [<storage type>]] [-u] <paths> `
++Usage: `hadoop fs -count [-q] [-h] [-v] [-x] [-t [<storage type>]] [-u] [-e] <paths> `
+ 
+ Count the number of directories, files and bytes under the paths that match the specified file pattern. Get the quota and the usage. The output columns with -count are: DIR\_COUNT, FILE\_COUNT, CONTENT\_SIZE, PATHNAME
+ 
+@@ -159,6 +159,12 @@ The -v option displays a header line.
+ 
+ The -x option excludes snapshots from the result calculation. Without the -x option (default), the result is always calculated from all INodes, including all snapshots under the given path. The -x option is ignored if -u or -q option is given.
+ 
++The -e option shows the erasure coding policy for each file.
++
++The output columns with -count -e are: DIR\_COUNT, FILE\_COUNT, CONTENT_SIZE, ERASURECODING\_POLICY, PATHNAME
++
++The ERASURECODING\_POLICY is name of the policy for the file. If a erasure coding policy is setted on that file, it will return name of the policy. If no erasure coding policy is setted, it will return \"Replicated\" which means it use replication storage strategy.
++
+ Example:
+ 
+ * `hadoop fs -count hdfs://nn1.example.com/file1 hdfs://nn2.example.com/file2`
+@@ -168,6 +174,7 @@ Example:
+ * `hadoop fs -count -u hdfs://nn1.example.com/file1`
+ * `hadoop fs -count -u -h hdfs://nn1.example.com/file1`
+ * `hadoop fs -count -u -h -v hdfs://nn1.example.com/file1`
++* `hadoop fs -count -e hdfs://nn1.example.com/file1`
+ 
+ Exit Code:
+ 
+diff --git a/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/cli/TestCLI.java b/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/cli/TestCLI.java
+index e1514ff..977262f 100644
+--- a/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/cli/TestCLI.java
++++ b/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/cli/TestCLI.java
+@@ -1,4 +1,4 @@
+-/**
++ /**
+  * Licensed to the Apache Software Foundation (ASF) under one
+  * or more contributor license agreements.  See the NOTICE file
+  * distributed with this work for additional information
+diff --git a/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/fs/shell/TestCount.java b/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/fs/shell/TestCount.java
+index 2a1c38c..a782958 100644
+--- a/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/fs/shell/TestCount.java
++++ b/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/fs/shell/TestCount.java
+@@ -447,7 +447,7 @@ public void getUsage() {
+     Count count = new Count();
+     String actual = count.getUsage();
+     String expected =
+-        "-count [-q] [-h] [-v] [-t [<storage type>]] [-u] [-x] <path> ...";
++        "-count [-q] [-h] [-v] [-t [<storage type>]] [-u] [-x] [-e] <path> ...";
+     assertEquals("Count.getUsage", expected, actual);
+   }
+ 
+@@ -478,7 +478,8 @@ public void getDescription() {
+         + "It can also pass the value '', 'all' or 'ALL' to specify all the "
+         + "storage types.\n"
+         + "The -u option shows the quota and \n"
+-        + "the usage against the quota without the detailed content summary.";
++        + "the usage against the quota without the detailed content summary."
++        + "The -e option shows the erasure coding policy.";
+ 
+     assertEquals("Count.getDescription", expected, actual);
+   }
+diff --git a/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml b/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml
+index 6644cd8..710f063 100644
+--- a/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml
++++ b/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml
+@@ -278,7 +278,7 @@
+       <comparators>
+         <comparator>
+           <type>RegexpComparator</type>
+-          <expected-output>^-count \[-q\] \[-h\] \[-v\] \[-t \[&lt;storage type&gt;\]\] \[-u\] \[-x\] &lt;path&gt; \.\.\. :( )*</expected-output>
++          <expected-output>^-count \[-q\] \[-h\] \[-v\] \[-t \[&lt;storage type&gt;\]\] \[-u\] \[-x\] \[-e\] &lt;path&gt; \.\.\. :( )*</expected-output>
+         </comparator>
+         <comparator>
+           <type>RegexpComparator</type>
+diff --git a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/PBHelperClient.java b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/PBHelperClient.java
+index 1c2c83f..3227ad6 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/PBHelperClient.java
++++ b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/PBHelperClient.java
+@@ -1567,7 +1567,8 @@ public static ContentSummary convert(ContentSummaryProto cs) {
+         snapshotSpaceConsumed(cs.getSnapshotSpaceConsumed()).
+         quota(cs.getQuota()).
+         spaceConsumed(cs.getSpaceConsumed()).
+-        spaceQuota(cs.getSpaceQuota());
++        spaceQuota(cs.getSpaceQuota()).
++        erasureCodingPolicy(cs.getErasureCodingPolicy());
+     if (cs.hasTypeQuotaInfos()) {
+       addStorageTypes(cs.getTypeQuotaInfos(), builder);
+     }
+@@ -2211,7 +2212,8 @@ public static ContentSummaryProto convert(ContentSummary cs) {
+         setSnapshotSpaceConsumed(cs.getSnapshotSpaceConsumed()).
+         setQuota(cs.getQuota()).
+         setSpaceConsumed(cs.getSpaceConsumed()).
+-        setSpaceQuota(cs.getSpaceQuota());
++        setSpaceQuota(cs.getSpaceQuota()).
++        setErasureCodingPolicy(cs.getErasureCodingPolicy());
+ 
+     if (cs.isTypeQuotaSet() || cs.isTypeConsumedAvailable()) {
+       builder.setTypeQuotaInfos(getBuilder(cs));
+diff --git a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/hdfs.proto b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/hdfs.proto
+index 10ea5d7..b306fcf 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/hdfs.proto
++++ b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/hdfs.proto
+@@ -159,6 +159,7 @@ message ContentSummaryProto {
+   optional uint64 snapshotFileCount = 9;
+   optional uint64 snapshotDirectoryCount = 10;
+   optional uint64 snapshotSpaceConsumed = 11;
++  optional string erasureCodingPolicy = 12;
+ }
+ 
+ /**
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ContentSummaryComputationContext.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ContentSummaryComputationContext.java
+index b35270d..8d5aa0d 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ContentSummaryComputationContext.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ContentSummaryComputationContext.java
+@@ -21,6 +21,14 @@
+ import org.apache.hadoop.classification.InterfaceAudience;
+ import org.apache.hadoop.classification.InterfaceStability;
+ import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
++import org.apache.commons.logging.Log;
++import org.apache.commons.logging.LogFactory;
++import org.apache.hadoop.fs.XAttr;
++import org.apache.hadoop.io.WritableUtils;
++import java.io.ByteArrayInputStream;
++import java.io.DataInputStream;
++import java.io.IOException;
++import static org.apache.hadoop.hdfs.server.common.HdfsServerConstants.XATTR_ERASURECODING_POLICY;
+ 
+ @InterfaceAudience.Private
+ @InterfaceStability.Unstable
+@@ -36,6 +44,8 @@
+   private long sleepMilliSec = 0;
+   private int sleepNanoSec = 0;
+ 
++  public static final String REPLICATED = "Replicated";
++  public static final Log LOG = LogFactory.getLog(INode.class);
+   /**
+    * Constructor
+    *
+@@ -138,4 +148,42 @@ public BlockStoragePolicySuite getBlockStoragePolicySuite() {
+     return (bsps != null) ? bsps:
+         fsn.getBlockManager().getStoragePolicySuite();
+   }
++
++  /** Get the erasure coding policy. */
++  public String getErasureCodingPolicyName(INode inode) {
++    if (inode.isFile()) {
++      INodeFile iNodeFile = inode.asFile();
++      if (iNodeFile.isStriped()) {
++        byte ecPolicyId = iNodeFile.getErasureCodingPolicyID();
++        return fsn.getErasureCodingPolicyManager()
++            .getByID(ecPolicyId).getName();
++      } else {
++        return REPLICATED;
++      }
++    }
++    if (inode.isSymlink()) {
++      return "";
++    }
++    try {
++      final XAttrFeature xaf = inode.getXAttrFeature();
++      if (xaf != null) {
++        XAttr xattr = xaf.getXAttr(XATTR_ERASURECODING_POLICY);
++        if (xattr != null) {
++          ByteArrayInputStream bins =
++              new ByteArrayInputStream(xattr.getValue());
++          DataInputStream din = new DataInputStream(bins);
++          String ecPolicyName = WritableUtils.readString(din);
++          return dir.getFSNamesystem()
++              .getErasureCodingPolicyManager()
++              .getEnabledPolicyByName(ecPolicyName)
++              .getName();
++        }
++      }
++    } catch (IOException ioe) {
++      LOG.warn("Encountered error getting ec policy for "
++          + inode.getFullPathName(), ioe);
++      return "";
++    }
++    return "";
++  }
+ }
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/INode.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/INode.java
+index c6258a1..1f982ca 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/INode.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/INode.java
+@@ -445,6 +445,7 @@ public final ContentSummary computeAndConvertContentSummary(int snapshotId,
+         snapshotFileCount(snapshotCounts.getFileCount()).
+         snapshotDirectoryCount(snapshotCounts.getDirectoryCount()).
+         snapshotSpaceConsumed(snapshotCounts.getStoragespace()).
++        erasureCodingPolicy(summary.getErasureCodingPolicyName(this)).
+         build();
+   }
+ 
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml b/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
+index 86db569..26acc1f 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
+@@ -570,5 +570,46 @@
+         </comparator>
+       </comparators>
+     </test>
++
++    <test> <!-- TESTED -->
++      <description>count: file using absolute path with option -e to show erasurecoding policy of a directory</description>
++      <test-commands>
++        <command>-fs NAMENODE -mkdir /dir1</command>
++        <ec-admin-command>-fs NAMENODE -setPolicy -path /dir1 -policy RS-6-3-64k</ec-admin-command>
++        <command>-fs NAMENODE -touchz /dir1/file1</command>
++        <command>-fs NAMENODE -touchz /dir1/file2</command>
++        <command>-fs NAMENODE -count -e -v /dir1</command>
++      </test-commands>
++      <cleanup-commands>
++        <command>-fs NAMENODE -rmdir /dir1</command>
++      </cleanup-commands>
++      <comparators>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>( |\t)*1( |\t)*2( |\t)*0 EC:[A-Za-z0-9-]{1,}( )*/dir1</expected-output>
++        </comparator>
++      </comparators>
++    </test>
++
++    <test> <!-- TESTED -->
++      <description>count: file using absolute path with option -e to show erasurecoding policy of a file and option -v to show head information</description>
++      <test-commands>
++        <command>-fs NAMENODE -touchz /file1</command>
++        <command>-fs NAMENODE -count -e -v /file1</command>
++      </test-commands>
++      <cleanup-commands>
++        <command>-fs NAMENODE -rm /file1</command>
++      </cleanup-commands>
++      <comparators>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>( |\t)*DIR_COUNT   FILE_COUNT       CONTENT_SIZE( )*ERASURECODING_POLICY( )*PATHNAME</expected-output>
++        </comparator>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>( |\t)*0( |\t)*1( |\t)*0 [A-Za-z0-9-]{1,}( )*/file1</expected-output>
++        </comparator>
++      </comparators>
++    </test>
+   </tests>
+ </configuration>
