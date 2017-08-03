@@ -1,0 +1,347 @@
+diff --git a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/DistributedFileSystem.java b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/DistributedFileSystem.java
+index 34c631a..16b4aaf 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/DistributedFileSystem.java
++++ b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/DistributedFileSystem.java
+@@ -2515,8 +2515,6 @@ public DFSInotifyEventInputStream getInotifyEventStream(long lastReadTxid)
+   public void setErasureCodingPolicy(final Path path,
+       final String ecPolicyName) throws IOException {
+     Path absF = fixRelativePart(path);
+-    Preconditions.checkNotNull(ecPolicyName, "Erasure coding policy cannot be" +
+-        " null.");
+     new FileSystemLinkResolver<Void>() {
+       @Override
+       public Void doCall(final Path p) throws IOException {
+diff --git a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolTranslatorPB.java b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolTranslatorPB.java
+index 388788c..aed4117 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolTranslatorPB.java
++++ b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolTranslatorPB.java
+@@ -1518,7 +1518,9 @@ public void setErasureCodingPolicy(String src, String ecPolicyName)
+     final SetErasureCodingPolicyRequestProto.Builder builder =
+         SetErasureCodingPolicyRequestProto.newBuilder();
+     builder.setSrc(src);
+-    builder.setEcPolicyName(ecPolicyName);
++    if (ecPolicyName != null) {
++      builder.setEcPolicyName(ecPolicyName);
++    }
+     SetErasureCodingPolicyRequestProto req = builder.build();
+     try {
+       rpcProxy.setErasureCodingPolicy(null, req);
+diff --git a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/erasurecoding.proto b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/erasurecoding.proto
+index 65baab6..9f80350 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/erasurecoding.proto
++++ b/hadoop-hdfs-project/hadoop-hdfs-client/src/main/proto/erasurecoding.proto
+@@ -25,7 +25,7 @@ import "hdfs.proto";
+
+ message SetErasureCodingPolicyRequestProto {
+   required string src = 1;
+-  required string ecPolicyName = 2;
++  optional string ecPolicyName = 2;
+ }
+
+ message SetErasureCodingPolicyResponseProto {
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/DFSConfigKeys.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/DFSConfigKeys.java
+index 1f60f32..0506fc3 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/DFSConfigKeys.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/DFSConfigKeys.java
+@@ -564,6 +564,10 @@
+   public static final String  DFS_NAMENODE_EC_POLICIES_ENABLED_DEFAULT = "";
+   public static final String  DFS_NAMENODE_EC_POLICIES_MAX_CELLSIZE_KEY = "dfs.namenode.ec.policies.max.cellsize";
+   public static final int     DFS_NAMENODE_EC_POLICIES_MAX_CELLSIZE_DEFAULT = 4 * 1024 * 1024;
++  public static final String  DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY =
++      "dfs.namenode.ec.system.default.policy";
++  public static final String  DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY_DEFAULT =
++      "RS-6-3-64k";
+   public static final String  DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_THREADS_KEY = "dfs.datanode.ec.reconstruction.stripedread.threads";
+   public static final int     DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_THREADS_DEFAULT = 20;
+   public static final String  DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_BUFFER_SIZE_KEY = "dfs.datanode.ec.reconstruction.stripedread.buffer.size";
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolServerSideTranslatorPB.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolServerSideTranslatorPB.java
+index 4ac49fe..38b81c6 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolServerSideTranslatorPB.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/protocolPB/ClientNamenodeProtocolServerSideTranslatorPB.java
+@@ -1488,7 +1488,9 @@ public SetErasureCodingPolicyResponseProto setErasureCodingPolicy(
+       RpcController controller, SetErasureCodingPolicyRequestProto req)
+       throws ServiceException {
+     try {
+-      server.setErasureCodingPolicy(req.getSrc(), req.getEcPolicyName());
++      String ecPolicyName = req.hasEcPolicyName() ?
++          req.getEcPolicyName() : null;
++      server.setErasureCodingPolicy(req.getSrc(), ecPolicyName);
+       return SetErasureCodingPolicyResponseProto.newBuilder().build();
+     } catch (IOException e) {
+       throw new ServiceException(e);
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ErasureCodingPolicyManager.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ErasureCodingPolicyManager.java
+index 266d45c..78d082f 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ErasureCodingPolicyManager.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/ErasureCodingPolicyManager.java
+@@ -17,6 +17,7 @@
+  */
+ package org.apache.hadoop.hdfs.server.namenode;
+
++import org.apache.commons.lang.ArrayUtils;
+ import org.apache.hadoop.classification.InterfaceAudience;
+ import org.apache.hadoop.conf.Configuration;
+ import org.apache.hadoop.hdfs.DFSConfigKeys;
+@@ -92,9 +93,14 @@ private ErasureCodingPolicyManager() {}
+
+   public void init(Configuration conf) {
+     // Populate the list of enabled policies from configuration
+-    final String[] policyNames = conf.getTrimmedStrings(
+-        DFSConfigKeys.DFS_NAMENODE_EC_POLICIES_ENABLED_KEY,
+-        DFSConfigKeys.DFS_NAMENODE_EC_POLICIES_ENABLED_DEFAULT);
++    final String[] enablePolicyNames = conf.getTrimmedStrings(
++            DFSConfigKeys.DFS_NAMENODE_EC_POLICIES_ENABLED_KEY,
++            DFSConfigKeys.DFS_NAMENODE_EC_POLICIES_ENABLED_DEFAULT);
++    final String[] defaultPolicyName = conf.getTrimmedStrings(
++            DFSConfigKeys.DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY,
++            DFSConfigKeys.DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY_DEFAULT);
++    final String[] policyNames =
++            (String[]) ArrayUtils.addAll(enablePolicyNames,defaultPolicyName);
+     this.userPoliciesByID = new TreeMap<>();
+     this.userPoliciesByName = new TreeMap<>();
+     this.removedPoliciesByName = new TreeMap<>();
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/NameNodeRpcServer.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/NameNodeRpcServer.java
+index 39d93df..930ab74 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/NameNodeRpcServer.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/NameNodeRpcServer.java
+@@ -250,13 +250,15 @@
+
+   private final String minimumDataNodeVersion;
+ 
++  private final String defaultECPolicyName;
++
+   public NameNodeRpcServer(Configuration conf, NameNode nn)
+       throws IOException {
+     this.nn = nn;
+     this.namesystem = nn.getNamesystem();
+     this.retryCache = namesystem.getRetryCache();
+     this.metrics = NameNode.getNameNodeMetrics();
+-    
++
+     int handlerCount = 
+       conf.getInt(DFS_NAMENODE_HANDLER_COUNT_KEY, 
+                   DFS_NAMENODE_HANDLER_COUNT_DEFAULT);
+@@ -489,6 +491,10 @@ public NameNodeRpcServer(Configuration conf, NameNode nn)
+         DFSConfigKeys.DFS_NAMENODE_MIN_SUPPORTED_DATANODE_VERSION_KEY,
+         DFSConfigKeys.DFS_NAMENODE_MIN_SUPPORTED_DATANODE_VERSION_DEFAULT);
+
++    defaultECPolicyName = conf.get(
++        DFSConfigKeys.DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY,
++        DFSConfigKeys.DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY_DEFAULT);
++
+     // Set terse exception whose stack trace won't be logged
+     clientRpcServer.addTerseExceptions(SafeModeException.class,
+         FileNotFoundException.class,
+@@ -2054,6 +2060,12 @@ public void setErasureCodingPolicy(String src, String ecPolicyName)
+     }
+     boolean success = false;
+     try {
++      if (ecPolicyName == null) {
++        ecPolicyName = defaultECPolicyName;
++        LOG.trace("No policy name is specified, " +
++            "set the default policy name instead");
++      }
++      LOG.trace("Set erasure coding policy " + ecPolicyName + " on " + src);
+       namesystem.setErasureCodingPolicy(src, ecPolicyName, cacheEntry != null);
+       success = true;
+     } finally {
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/tools/ECAdmin.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/tools/ECAdmin.java
+index 5006b5a..46600a0 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/tools/ECAdmin.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/tools/ECAdmin.java
+@@ -335,11 +335,6 @@ public int run(Configuration conf, List<String> args) throws IOException {
+
+       final String ecPolicyName = StringUtils.popOptionWithArgument("-policy",
+           args);
+-      if (ecPolicyName == null) {
+-        System.err.println("Please specify the policy name.\nUsage: " +
+-            getLongUsage());
+-        return 1;
+-      }
+
+       if (args.size() > 0) {
+         System.err.println(getName() + ": Too many arguments");
+@@ -350,8 +345,13 @@ public int run(Configuration conf, List<String> args) throws IOException {
+       final DistributedFileSystem dfs = AdminHelper.getDFS(p.toUri(), conf);
+       try {
+         dfs.setErasureCodingPolicy(p, ecPolicyName);
+-        System.out.println("Set erasure coding policy " + ecPolicyName +
+-            " on " + path);
++        if (ecPolicyName == null){
++          System.out.println("Set default erasure coding policy" +
++              " on " + path);
++        } else {
++          System.out.println("Set erasure coding policy " + ecPolicyName +
++              " on " + path);
++        }
+       } catch (Exception e) {
+         System.err.println(AdminHelper.prettifyException(e));
+         return 2;
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/resources/hdfs-default.xml b/hadoop-hdfs-project/hadoop-hdfs/src/main/resources/hdfs-default.xml
+index be345af..ae55df6 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/resources/hdfs-default.xml
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/resources/hdfs-default.xml
+@@ -2974,6 +2974,14 @@
+ </property>
+
+ <property>
++  <name>dfs.namenode.ec.system.default.policy</name>
++  <value></value>
++  <description>The default erasure coding policy name will be used
++    on the path if no policy name is passed.
++  </description>
++</property>
++
++<property>
+   <name>dfs.namenode.ec.policies.max.cellsize</name>
+   <value>4194304</value>
+   <description>The maximum cell size of erasure coding policy. Default is 4MB.
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/site/markdown/HDFSErasureCoding.md b/hadoop-hdfs-project/hadoop-hdfs/src/site/markdown/HDFSErasureCoding.md
+index 1c0a2de..f2f2967 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/site/markdown/HDFSErasureCoding.md
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/site/markdown/HDFSErasureCoding.md
+@@ -117,6 +117,11 @@ Deployment
+   be more appropriate. If the administrator only cares about node-level fault-tolerance, `RS-10-4-64k` would still be appropriate as long as
+   there are at least 14 DataNodes in the cluster.
+
++  A system default EC policy can be configured via 'dfs.namenode.ec.system.default.policy' configuration. With this configuration,
++  the default EC policy will be used even though no policy name is passed as an argument in the '-setPolicy' command.
++
++  By default, the 'dfs.namenode.ec.system.default.policy' is "RS-6-3-64K".
++
+   The codec implementations for Reed-Solomon and XOR can be configured with the following client and DataNode configuration keys:
+   `io.erasurecode.codec.rs.rawcoders` for the default RS codec,
+   `io.erasurecode.codec.rs-legacy.rawcoders` for the legacy RS codec,
+@@ -167,6 +172,9 @@ Below are the details about each command.
+       `path`: An directory in HDFS. This is a mandatory parameter. Setting a policy only affects newly created files, and does not affect existing files.
+
+       `policyName`: The erasure coding policy to be used for files under this directory.
++      This parameter can be omitted if a 'dfs.namenode.ec.system.default.policy' configuration is set.
++      The EC policy of the path will be set with the default value in configuration.
++
+
+  *  `[-getPolicy -path <path>]`
+
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/TestErasureCodingPolicies.java b/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/TestErasureCodingPolicies.java
+index f90a2f3..ff7a95a 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/TestErasureCodingPolicies.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/TestErasureCodingPolicies.java
+@@ -209,9 +209,9 @@ public void testBasicSetECPolicy()
+     cluster.restartNameNodes();
+     cluster.waitActive();
+
+-    // No policies should be enabled after restart
+-    Assert.assertTrue("No policies should be enabled after restart",
+-        fs.getAllErasureCodingPolicies().isEmpty());
++    // Only default policy should be enabled after restart
++    Assert.assertEquals("Only default policy should be enabled after restart",
++        1,fs.getAllErasureCodingPolicies().size());
+
+     // Already set directory-level policies should still be in effect
+     Path disabledPolicy = new Path(dir1, "afterDisabled");
+@@ -360,6 +360,24 @@ public void testSetInvalidPolicy()
+   }
+
+   @Test
++  public void testSetDefaultPolicy()
++          throws IOException {
++    String src = "/ecDir";
++    final Path ecDir = new Path(src);
++    try {
++      fs.mkdir(ecDir, FsPermission.getDirDefault());
++      fs.getClient().setErasureCodingPolicy(src, null);
++      String actualECPolicyName = fs.getClient().
++          getErasureCodingPolicy(src).getName();
++      String expectedECPolicyName =
++          conf.get(DFSConfigKeys.DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY,
++          DFSConfigKeys.DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY_DEFAULT);
++      assertEquals(expectedECPolicyName,actualECPolicyName);
++    } catch (Exception e) {
++    }
++  }
++
++  @Test
+   public void testGetAllErasureCodingPolicies() throws Exception {
+     Collection<ErasureCodingPolicy> allECPolicies = fs
+         .getAllErasureCodingPolicies();
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/server/namenode/TestEnabledECPolicies.java b/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/server/namenode/TestEnabledECPolicies.java
+index fe95734..d769f8b 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/server/namenode/TestEnabledECPolicies.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/hdfs/server/namenode/TestEnabledECPolicies.java
+@@ -75,7 +75,7 @@ public void testDefaultPolicy() throws Exception {
+     String defaultECPolicies = conf.get(
+         DFSConfigKeys.DFS_NAMENODE_EC_POLICIES_ENABLED_KEY,
+         DFSConfigKeys.DFS_NAMENODE_EC_POLICIES_ENABLED_DEFAULT);
+-    expectValidPolicy(defaultECPolicies, 0);
++    expectValidPolicy(defaultECPolicies, 1);
+   }
+ 
+   @Test
+@@ -98,10 +98,10 @@ public void testValid() throws Exception {
+     String ecPolicyName = StripedFileTestUtil.getDefaultECPolicy().getName();
+     expectValidPolicy(ecPolicyName, 1);
+     expectValidPolicy(ecPolicyName + ", ", 1);
+-    expectValidPolicy(",", 0);
++    expectValidPolicy(",", 1);
+     expectValidPolicy(", " + ecPolicyName, 1);
+-    expectValidPolicy(" ", 0);
+-    expectValidPolicy(" , ", 0);
++    expectValidPolicy(" ", 1);
++    expectValidPolicy(" , ", 1);
+   }
+
+   @Test
+@@ -147,7 +147,7 @@ private void testGetPolicies(ErasureCodingPolicy[] enabledPolicies)
+       Assert.assertTrue("Did not find specified EC policy " + p.getName(),
+           found.contains(p.getName()));
+     }
+-    Assert.assertEquals(enabledPolicies.length, found.size());
++    Assert.assertEquals(enabledPolicies.length, found.size()-1);
+     // Check that getEnabledPolicyByName only returns enabled policies
+     for (ErasureCodingPolicy p: SystemErasureCodingPolicies.getPolicies()) {
+       if (found.contains(p.getName())) {
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml b/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
+index 127effc..c68c6d6 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
+@@ -553,6 +553,41 @@
+     </test>
+
+     <test>
++      <description>setPolicy : set erasure coding policy without given a specific policy name</description>
++      <test-commands>
++        <command>-fs NAMENODE -mkdir /ecdir</command>
++        <ec-admin-command>-fs NAMENODE -setPolicy -path /ecdir</ec-admin-command>
++      </test-commands>
++      <cleanup-commands>
++        <command>-fs NAMENODE -rmdir /ecdir</command>
++      </cleanup-commands>
++      <comparators>
++        <comparator>
++          <type>SubstringComparator</type>
++          <expected-output>Set default erasure coding policy on /ecdir</expected-output>
++        </comparator>
++      </comparators>
++    </test>
++
++    <test>
++      <description>getPolicy: get the default policy after setPolicy without given a specific policy name</description>
++      <test-commands>
++        <command>-fs NAMENODE -mkdir /ecdir</command>
++        <ec-admin-command>-fs NAMENODE -setPolicy -path /ecdir</ec-admin-command>
++        <ec-admin-command>-fs NAMENODE -getPolicy -path /ecdir</ec-admin-command>
++      </test-commands>
++      <cleanup-commands>
++        <command>-fs NAMENODE -rmdir /ecdir</command>
++      </cleanup-commands>
++      <comparators>
++        <comparator>
++          <type>SubstringComparator</type>
++          <expected-output>RS-6-3-64k</expected-output>
++        </comparator>
++      </comparators>
++    </test>
++
++    <test>
+       <description>getPolicy : illegal parameters - path is missing</description>
+       <test-commands>
+         <ec-admin-command>-fs NAMENODE -getPolicy </ec-admin-command>
