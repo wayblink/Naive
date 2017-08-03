@@ -1,0 +1,232 @@
+diff --git a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Ls.java b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Ls.java
+index 47e87f5..221b3cb 100644
+--- a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Ls.java
++++ b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/shell/Ls.java
+@@ -32,6 +32,7 @@
+ import org.apache.hadoop.classification.InterfaceStability;
+ import org.apache.hadoop.fs.FileStatus;
+ import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.fs.ContentSummary;
+ 
+ /**
+  * Get a listing of all files in that match the file patterns.
+@@ -54,13 +55,14 @@ public static void registerCommands(CommandFactory factory) {
+   private static final String OPTION_MTIME = "t";
+   private static final String OPTION_ATIME = "u";
+   private static final String OPTION_SIZE = "S";
++  private static final String OPTION_ECPOLICY = "e";
+ 
+   public static final String NAME = "ls";
+   public static final String USAGE = "[-" + OPTION_PATHONLY + "] [-" +
+       OPTION_DIRECTORY + "] [-" + OPTION_HUMAN + "] [-" +
+       OPTION_HIDENONPRINTABLE + "] [-" + OPTION_RECURSIVE + "] [-" +
+       OPTION_MTIME + "] [-" + OPTION_SIZE + "] [-" + OPTION_REVERSE + "] [-" +
+-      OPTION_ATIME + "] [<path> ...]";
++      OPTION_ATIME + "] [-" + OPTION_ECPOLICY +"] [<path> ...]";
+ 
+   public static final String DESCRIPTION =
+       "List the contents that match the specified file pattern. If " +
+@@ -91,7 +93,9 @@ public static void registerCommands(CommandFactory factory) {
+           "  Reverse the order of the sort.\n" +
+           "  -" + OPTION_ATIME +
+           "  Use time of last access instead of modification for\n" +
+-          "      display and sorting.";
++          "      display and sorting.\n"+
++          "  -" + OPTION_ECPOLICY +
++          "  Display the erasure coding policy of files and directories.\n";
+ 
+   protected final SimpleDateFormat dateFormat =
+     new SimpleDateFormat("yyyy-MM-dd HH:mm");
+@@ -104,6 +108,7 @@ public static void registerCommands(CommandFactory factory) {
+   private boolean orderTime;
+   private boolean orderSize;
+   private boolean useAtime;
++  private boolean displayECPolicy;
+   private Comparator<PathData> orderComparator;
+ 
+   protected boolean humanReadable = false;
+@@ -129,7 +134,7 @@ protected void processOptions(LinkedList<String> args)
+     CommandFormat cf = new CommandFormat(0, Integer.MAX_VALUE,
+         OPTION_PATHONLY, OPTION_DIRECTORY, OPTION_HUMAN,
+         OPTION_HIDENONPRINTABLE, OPTION_RECURSIVE, OPTION_REVERSE,
+-        OPTION_MTIME, OPTION_SIZE, OPTION_ATIME);
++        OPTION_MTIME, OPTION_SIZE, OPTION_ATIME, OPTION_ECPOLICY);
+     cf.parse(args);
+     pathOnly = cf.getOpt(OPTION_PATHONLY);
+     dirRecurse = !cf.getOpt(OPTION_DIRECTORY);
+@@ -140,6 +145,7 @@ protected void processOptions(LinkedList<String> args)
+     orderTime = cf.getOpt(OPTION_MTIME);
+     orderSize = !orderTime && cf.getOpt(OPTION_SIZE);
+     useAtime = cf.getOpt(OPTION_ATIME);
++    displayECPolicy = cf.getOpt(OPTION_ECPOLICY);
+     if (args.isEmpty()) args.add(Path.CUR_DIR);
+ 
+     initialiseOrderComparator();
+@@ -245,25 +251,42 @@ protected void processPath(PathData item) throws IOException {
+       return;
+     }
+     FileStatus stat = item.stat;
+-    String line = String.format(lineFormat,
+-        (stat.isDirectory() ? "d" : "-"),
+-        stat.getPermission() + (stat.getPermission().getAclBit() ? "+" : " "),
+-        (stat.isFile() ? stat.getReplication() : "-"),
+-        stat.getOwner(),
+-        stat.getGroup(),
+-        formatSize(stat.getLen()),
+-        dateFormat.format(new Date(isUseAtime()
+-            ? stat.getAccessTime()
+-            : stat.getModificationTime())),
+-        isHideNonPrintable() ? new PrintableString(item.toString()) : item);
+-    out.println(line);
++    if (displayECPolicy) {
++      ContentSummary contentSummary = item.fs.getContentSummary(item.path);
++      String line = String.format(lineFormat,
++          (stat.isDirectory() ? "d" : "-"),
++          stat.getPermission() + (stat.getPermission().getAclBit() ? "+" : " "),
++          (stat.isFile() ? stat.getReplication() : "-"),
++          stat.getOwner(),
++          stat.getGroup(),
++          contentSummary.getErasureCodingPolicy(),
++          formatSize(stat.getLen()),
++          dateFormat.format(new Date(isUseAtime()
++              ? stat.getAccessTime()
++              : stat.getModificationTime())),
++          isHideNonPrintable() ? new PrintableString(item.toString()) : item);
++      out.println(line);
++    } else {
++      String line = String.format(lineFormat,
++          (stat.isDirectory() ? "d" : "-"),
++          stat.getPermission() + (stat.getPermission().getAclBit() ? "+" : " "),
++          (stat.isFile() ? stat.getReplication() : "-"),
++          stat.getOwner(),
++          stat.getGroup(),
++          formatSize(stat.getLen()),
++          dateFormat.format(new Date(isUseAtime()
++              ? stat.getAccessTime()
++              : stat.getModificationTime())),
++          isHideNonPrintable() ? new PrintableString(item.toString()) : item);
++      out.println(line);
++    }
+   }
+ 
+   /**
+    * Compute column widths and rebuild the format string
+    * @param items to find the max field width for each column
+    */
+-  private void adjustColumnWidths(PathData items[]) {
++  private void adjustColumnWidths(PathData items[]) throws IOException {
+     for (PathData item : items) {
+       FileStatus stat = item.stat;
+       maxRepl  = maxLength(maxRepl, stat.getReplication());
+@@ -278,6 +301,14 @@ private void adjustColumnWidths(PathData items[]) {
+     // Do not use '%-0s' as a formatting conversion, since it will throw a
+     // a MissingFormatWidthException if it is used in String.format().
+     // http://docs.oracle.com/javase/1.5.0/docs/api/java/util/Formatter.html#intFlags
++    if(displayECPolicy){
++      int maxEC=0;
++      for (PathData item : items) {
++          ContentSummary contentSummary = item.fs.getContentSummary(item.path);
++          maxEC=maxLength(maxEC,contentSummary.getErasureCodingPolicy().length());
++      }
++      fmt.append(" %"+maxEC+"s ");
++    }
+     fmt.append((maxOwner > 0) ? "%-" + maxOwner + "s " : "%s");
+     fmt.append((maxGroup > 0) ? "%-" + maxGroup + "s " : "%s");
+     fmt.append("%"  + maxLen   + "s ");
+diff --git a/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md b/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md
+index 7786642..0a594ab 100644
+--- a/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md
++++ b/hadoop-common-project/hadoop-common/src/site/markdown/FileSystemShell.md
+@@ -410,7 +410,7 @@ Return usage output.
+ ls
+ ----
+ 
+-Usage: `hadoop fs -ls [-C] [-d] [-h] [-q] [-R] [-t] [-S] [-r] [-u] <args> `
++Usage: `hadoop fs -ls [-C] [-d] [-h] [-q] [-R] [-t] [-S] [-r] [-u] [-e] <args> `
+ 
+ Options:
+ 
+@@ -423,6 +423,7 @@ Options:
+ * -S: Sort output by file size.
+ * -r: Reverse the sort order.
+ * -u: Use access time rather than modification time for display and sorting.  
++* -e: Display the erasure coding policy of files and directories only.
+ 
+ For a file ls returns stat on the file with the following format:
+ 
+@@ -437,6 +438,7 @@ Files within a directory are order by filename by default.
+ Example:
+ 
+ * `hadoop fs -ls /user/hadoop/file1`
++* `hadoop fs -ls -e /ecdir`
+ 
+ Exit Code:
+ 
+diff --git a/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml b/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml
+index 710f063..342b17c 100644
+--- a/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml
++++ b/hadoop-common-project/hadoop-common/src/test/resources/testConf.xml
+@@ -54,7 +54,7 @@
+       <comparators>
+         <comparator>
+           <type>RegexpComparator</type>
+-          <expected-output>^-ls \[-C\] \[-d\] \[-h\] \[-q\] \[-R\] \[-t\] \[-S\] \[-r\] \[-u\] \[&lt;path&gt; \.\.\.\] :( |\t)*</expected-output>
++          <expected-output>^-ls \[-C\] \[-d\] \[-h\] \[-q\] \[-R\] \[-t\] \[-S\] \[-r\] \[-u\] \[-e\] \[&lt;path&gt; \.\.\.\] :( |\t)*</expected-output>
+         </comparator>
+         <comparator>
+           <type>RegexpComparator</type>
+@@ -136,6 +136,10 @@
+           <type>RegexpComparator</type>
+           <expected-output>^( |\t)*display and sorting\.</expected-output>
+         </comparator>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>^( |\t)*-e\s+Display the erasure coding policy of files and directories\.</expected-output>
++        </comparator>
+       </comparators>
+     </test>
+ 
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml b/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
+index 26acc1f..3b431d6 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/test/resources/testErasureCodingConf.xml
+@@ -611,5 +611,39 @@
+         </comparator>
+       </comparators>
+     </test>
++
++    <test> <!-- TESTED -->
++      <description>ls: file using absolute path and option -e to show erasure coding policy of a directory</description>
++      <test-commands>
++        <command>-fs NAMENODE -mkdir -p /ecdir</command>
++        <ec-admin-command>-fs NAMENODE -setPolicy -path /ecdir -policy RS-6-3-64k</ec-admin-command>
++        <command>-fs NAMENODE -touchz /ecdir/file1</command>
++        <command>-fs NAMENODE -touchz /ecdir/file2</command>
++        <command>-fs NAMENODE -touchz /ecdir/file3</command>
++        <command>-fs NAMENODE -ls -e /ecdir</command>
++      </test-commands>
++      <cleanup-commands>
++        <command>-fs NAMENODE -rmdir /ecdir</command>
++      </cleanup-commands>
++      <comparators>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>Found [0-9] items</expected-output>
++        </comparator>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>^-rw-r--r--( )*1( )*USERNAME( )*supergroup( )*[A-Za-z0-9-]{1,}( )*0( )*[0-9]{4,}-[0-9]{2,}-[0-9]{2,} [0-9]{2,}:[0-9]{2,}( )*/ecdir/file1</expected-output>
++        </comparator>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>^-rw-r--r--( )*1( )*USERNAME( )*supergroup( )*[A-Za-z0-9-]{1,}( )*0( )*[0-9]{4,}-[0-9]{2,}-[0-9]{2,} [0-9]{2,}:[0-9]{2,}( )*/ecdir/file2</expected-output>
++        </comparator>
++        <comparator>
++          <type>RegexpComparator</type>
++          <expected-output>^-rw-r--r--( )*1( )*USERNAME( )*supergroup( )*[A-Za-z0-9-]{1,}( )*0( )*[0-9]{4,}-[0-9]{2,}-[0-9]{2,} [0-9]{2,}:[0-9]{2,}( )*/ecdir/file3</expected-output>
++        </comparator>
++      </comparators>
++    </test>
++
+   </tests>
+ </configuration>
