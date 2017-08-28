@@ -66,11 +66,36 @@ NameNodeRpcServer.java
 2，熟悉了Client-Server端的代码结构
 3，一些关于protobuf和configuration的细节
 
-protobuf的required元素不能为空，在我要传递空的ecPolicyName时出现问题，因此在RPC前后分别加一个判断：
-client端判断如果为空，则给它附一个特殊的值；server端判断如果是这个特殊值则说明其实是空，按空来处理。
+protobuf的required元素不能为空，在我要传递空的ecPolicyName时出现问题。  
+
+因此，在初次解决时，在RPC前后分别加一个判断：client端判断如果为空，则给它附一个特殊的值；server端判断如果是这个特殊值则说明其实是空，按空来处理。
+但这样的解决方式有些不优雅，最后的解决是将需要穿孔的元素由required改为optional，然后在RPC调用两端的辅助函数中增加对空值的判断。
 
 configuration不是个简单的entity，是包含了文件系统的类，初始化new Configuration()可以直接加载到配置信息内容；
 因此只需要在需要时初始化，然后conf.get（）获取属性值即可。
+
+关于配置项相关的代码，比较重要的及各类是Configuration，Configured和Configurable。
+
+Configuration如上所述是一个包含文件协同和IO，序列化操作的工具类，还有一些对配置项操作的方法，而具体的配置项，由继承它的子类来定义。
+如HDFSConfiguration就继承于它并定义了和HDFS相关的系列属性。
+
+Configured是一个超类，Configured代码非常简单，它只有一个Configuration私有变量，两个有参和无参的构造器，以及实现自Configurable的方法。
+
+Configurable是个接口，仅定义了两个方法   
+```
+@Override
+  public void setConf(Configuration conf) {
+    this.conf = conf;
+  }
+
+  // inherit javadoc
+  @Override
+  public Configuration getConf() {
+    return conf;
+  }
+```
+
+Hadoop的配置项都存储在xml文件中，因此是通过反序列化+键值对操作实现的。
 
 对于有值的configuration，一般会设置一个配置项，一个带默认值的配置项，带默认值的配置项应以_DEFAULT结尾；
 有测试检测配置项和配置文件是否匹配，以_DEFAULT结尾的配置项不需要在xml中配置，测试方法会根据_DEFAULT尾自动识别。
