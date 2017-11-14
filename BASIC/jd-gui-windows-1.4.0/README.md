@@ -1,3 +1,13 @@
+#Java-Decompiler
+
+JD是一个Java反编译工具：它包含JD-GUI版本和各种IDE的插件版本：
+Github在：https://github.com/java-decompiler
+
+eclipse插件安装见：
+http://www.cnblogs.com/liuhongfeng/p/4997592.html
+
+以下是Windows JD-GUI的说明：
+
 #JD-GUI
 
 JD-GUI, a standalone graphical utility that displays Java sources from CLASS files.
