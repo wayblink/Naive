@@ -1,6 +1,9 @@
+  调用站打印函数
+  =======================
   
   Scala版
   
+  ```
   private def printTrace: String = {
     val sbf = new StringBuffer
     val st = Thread.currentThread.getStackTrace
@@ -17,9 +20,13 @@
     }
     sbf.toString
   }
+  ```
+  
+  ------------------------
   
   Java版
 
+```
   String printTrack(){
         StringBuffer sbf =new StringBuffer();
         StackTraceElement[] st = Thread.currentThread().getStackTrace();
@@ -39,3 +46,4 @@
         }
         return sbf.toString();
     }
+    ```
