@@ -14,7 +14,7 @@ public class StackPrinter {
                 sbf.append(" <- ");
                 sbf.append(System.getProperty("line.separator"));
             }
-            sbf.append(java.text.MessageFormat.format("{0}.{1}() {2}"
+            sbf.append(java.text.MessageFormat.format("{0}.{1}---{2}"
                     ,e.getClassName()
                     ,e.getMethodName()
                     ,e.getLineNumber()));
